@@ -1,4 +1,4 @@
-import { normalizeHealthExport } from './data.mjs?v=2';
+import { normalizeHealthExport } from './data.mjs?v=3';
 
 const metricTypes = new Map([
   ['HKQuantityTypeIdentifierStepCount', 'stepCount'],
@@ -80,6 +80,7 @@ function collectHealthNodes(root,daily,workouts,heartRates,filterRates=false){
       distanceMeters:convert(distanceRaw,node.getAttribute('totalDistanceUnit'),'walkingRunningDistanceMeters') ?? convert(number(distanceStat?.getAttribute('sum')),distanceStat?.getAttribute('unit'),'walkingRunningDistanceMeters'),
       activeEnergyKilocalories:convert(energyRaw,node.getAttribute('totalEnergyBurnedUnit'),'activeEnergyKilocalories') ?? convert(number(energyStat?.getAttribute('sum')),energyStat?.getAttribute('unit'),'activeEnergyKilocalories'),
       heartRateSummary:heartRateStat ? { average:number(heartRateStat.getAttribute('average')), minimum:number(heartRateStat.getAttribute('minimum')), maximum:number(heartRateStat.getAttribute('maximum')) } : null,
+      heartRateZones:[...node.getElementsByTagName('WorkoutZoneGroup')].filter(group=>group.getAttribute('type')==='HKQuantityTypeIdentifierHeartRate').slice(0,1).flatMap(group=>[...group.getElementsByTagName('WorkoutZone')].map(zone=>({minimum:number(zone.getAttribute('minimum')),maximum:number(zone.getAttribute('maximum')),durationSeconds:(number(zone.getAttribute('duration'))||0)*((zone.getAttribute('durationUnit')||'').startsWith('min')?60:(zone.getAttribute('durationUnit')||'').startsWith('hour')?3600:1)}))),
       sourceName, heartRate:[], route:[] });
   }
 }

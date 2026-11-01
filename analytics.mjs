@@ -71,7 +71,7 @@ export function calculateHeartRateLoad(workouts,maximumHeartRateBPM) {
     const seconds=(Date.parse(samples[i+1].timestamp)-Date.parse(samples[i].timestamp))/1000;
     const ratio=samples[i].beatsPerMinute/maximumHeartRateBPM;
     if(seconds<=0||seconds>60||ratio<.5||ratio>1)continue;
-    const zone=Math.min(5,Math.floor((ratio-.5)/.1)+1);
+    const zone=ratio>=.9?5:ratio>=.8?4:ratio>=.7?3:ratio>=.6?2:1;
     zones[zone]+=seconds;coverageSeconds+=seconds;
   }
   const score=zones.reduce((total,seconds,zone)=>total+seconds/60*zone,0);

@@ -43,6 +43,7 @@ export function normalizeHealthExport(input) {
       distanceMeters: finiteOrNull(row.distanceMeters),
       activeEnergyKilocalories: finiteOrNull(row.activeEnergyKilocalories),
       heartRateSummary: row.heartRateSummary ? { average: finiteOrNull(row.heartRateSummary.average), minimum: finiteOrNull(row.heartRateSummary.minimum), maximum: finiteOrNull(row.heartRateSummary.maximum) } : null,
+      heartRateZones:(Array.isArray(row.heartRateZones)?row.heartRateZones:[]).flatMap(zone=>{const durationSeconds=finiteOrNull(zone?.durationSeconds);return durationSeconds!==null&&durationSeconds>=0?[{minimum:finiteOrNull(zone.minimum),maximum:finiteOrNull(zone.maximum),durationSeconds}]:[];}),
       sourceName: String(row.sourceName || ''),
       heartRate: (Array.isArray(row.heartRate) ? row.heartRate : []).flatMap((sample) => {
         const timestamp = isoDate(sample?.timestamp);

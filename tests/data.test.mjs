@@ -43,3 +43,9 @@ test('merges repeated imports by date and stable workout id', () => {
   assert.equal(merged.dailyActivity.length, 1);
   assert.equal(merged.workouts.length, 1);
 });
+
+test('preserves XML heart rate zone boundaries and durations',()=>{
+ const input={schemaVersion:1,workouts:[{activityTypeName:'달리기',startDate:'2026-11-01T00:00:00Z',endDate:'2026-11-01T00:10:00Z',durationSeconds:600,heartRateZones:[{minimum:null,maximum:137,durationSeconds:60},{minimum:137,maximum:149,durationSeconds:240}]}]};
+ const zone=normalizeHealthExport(input).workouts[0].heartRateZones;
+ assert.equal(zone.length,2);assert.equal(zone[0].minimum,null);assert.equal(zone[1].durationSeconds,240);
+});

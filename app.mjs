@@ -1,6 +1,6 @@
-import { mergeHealthData, normalizeHealthExport } from './data.mjs?v=2';
-import { attachRoutesToWorkouts, parseGPX, parseHealthXML, parseHealthXMLFile } from './parsers.mjs?v=4';
-import { buildLocalCoachReport, calculateHeartRateLoad, calculatePersonalRecords, summarizeRange } from './analytics.mjs';
+import { mergeHealthData, normalizeHealthExport } from './data.mjs?v=3';
+import { attachRoutesToWorkouts, parseGPX, parseHealthXML, parseHealthXMLFile } from './parsers.mjs?v=5';
+import { buildLocalCoachReport, calculateHeartRateLoad, calculatePersonalRecords, summarizeRange } from './analytics.mjs?v=2';
 import { analyzeRoute, buildRouteMapSVG, calculateRouteDistanceMeters, projectRoute } from './route-map.mjs';
 import { readHealthExportZip } from './archive.mjs?v=3';
 
@@ -167,27 +167,6 @@ function renderWorkoutTypeFilter(){
   [...types].sort((a,b)=>a[1].localeCompare(b[1],'ko')).forEach(([id,name])=>select.add(new Option(name,id)));
   if(types.has(previous))select.value=previous;
 }
-let naverMapsPromise;
-function loadNaverMaps(){
-  if(window.naver?.maps)return Promise.resolve(window.naver.maps);
-  const key=localStorage.getItem('wuturi-naver-map-keyid');if(!key)return Promise.reject(new Error('네이버 지도 클라이언트 ID를 설정해 주세요.'));
-  if(naverMapsPromise)return naverMapsPromise;
-  naverMapsPromise=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(key)}`;script.async=true;script.onload=()=>window.naver?.maps?resolve(window.naver.maps):reject(new Error('네이버 지도 API를 불러오지 못했습니다.'));script.onerror=()=>reject(new Error('네이버 지도 연결에 실패했습니다.'));document.head.append(script);});
-  return naverMapsPromise;
-}
-function renderNaverRouteMap(workout,track){
-  routeCursorMarker=null;
-  if(!localStorage.getItem('wuturi-naver-map-keyid')||track?.length<2)return;
-  loadNaverMaps().then((maps)=>{
-    if($('#detail-title').dataset.workoutId!==workout.id)return;
-    const host=$('#detail-route-map'),canvas=document.createElement('div');canvas.className='naver-route-canvas';host.replaceChildren(canvas);
-    const path=track.map((point)=>new maps.LatLng(point.latitude,point.longitude));
-    const map=new maps.Map(canvas,{center:path[0],zoom:14,zoomControl:false,scaleControl:false,logoControl:true,mapDataControl:false});
-    const bounds=new maps.LatLngBounds();path.forEach((point)=>bounds.extend(point));map.fitBounds(bounds);
-    new maps.Polyline({map,path,strokeColor:'#22a06b',strokeOpacity:.95,strokeWeight:5});
-    new maps.Marker({map,position:path[0],title:'시작'});new maps.Marker({map,position:path.at(-1),title:'도착'});routeCursorMarker=new maps.Marker({map,position:path[0],title:'선택한 거리',icon:{content:'<span class="route-cursor-pin"></span>',anchor:new maps.Point(8,8)}});
-  }).catch((error)=>announce(`${error.message} 로컬 경로로 표시합니다.`,true));
-}
 let leafletPromise;
 function renderOpenMap(workout,track){
   if(!track)return;
@@ -197,7 +176,7 @@ function renderOpenMap(workout,track){
   });
   leafletPromise.then((L)=>{
     if(activeDetailWorkout?.id!==workout.id)return;
-    const host=$('#detail-route-map'),canvas=document.createElement('div');canvas.className='naver-route-canvas';host.replaceChildren(canvas);
+    const host=$('#detail-route-map'),canvas=document.createElement('div');canvas.className='route-map-canvas';host.replaceChildren(canvas);
     const map=L.map(canvas,{scrollWheelZoom:false}).setView([36.3,127.8],7),path=track.map(p=>[p.latitude,p.longitude]);
     new ResizeObserver(()=>map.invalidateSize()).observe(canvas);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
@@ -227,8 +206,8 @@ function showWorkoutDetail(workout){
   const rates=(workout.heartRate||[]).map((sample)=>sample.beatsPerMinute).filter(Number.isFinite),summary=workout.heartRateSummary||{},heart=$('#detail-heart-rate');heart.replaceChildren();
   const avg=summary.average??(rates.length?rates.reduce((a,b)=>a+b,0)/rates.length:null),max=summary.maximum??(rates.length?Math.max(...rates):null),min=summary.minimum??(rates.length?Math.min(...rates):null);
   const hrLine=document.createElement('p');hrLine.className='detail-heart';hrLine.textContent=avg===null?'심박 통계가 기록되지 않았습니다.':`평균 ${Math.round(avg)} bpm　최저 ${Math.round(min)}　최고 ${Math.round(max)}${rates.length?` · ${rates.length}개 표본`:''}`;heart.append(hrLine);
-  if(rates.length>2){const lo=Math.min(...rates),hi=Math.max(...rates),span=Math.max(1,hi-lo);const points=rates.map((rate,index)=>`${(index/(rates.length-1)*600).toFixed(1)},${(90-(rate-lo)/span*74).toFixed(1)}`).join(' ');heart.insertAdjacentHTML('beforeend',`<svg class="detail-heart-chart" viewBox="0 0 600 100" role="img" aria-label="운동 중 심박 변화"><polyline points="${points}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`);}
-  renderRouteAnalysis(workout,routeAnalysis);
+
+  renderRouteAnalysis(workout,routeAnalysis);renderWorkoutZones(workout);
   const extra=$('#detail-metrics');extra.replaceChildren();[['기록 출처',workout.sourceName||'미상'],['GPS 경로',workout.route?.length>1?`${workout.route.length.toLocaleString('ko-KR')}개 지점`:'없음']].forEach(([label,value])=>{const row=document.createElement('div');row.className='detail-row';row.innerHTML='<span></span><strong></strong>';row.children[0].textContent=label;row.children[1].textContent=value;extra.append(row);});
   addRouteReplay(workout,routeAnalysis.track);
   $('#workout-dialog').showModal();
@@ -259,8 +238,8 @@ function updateRouteCursor(index,total,left=66,right=588){
 let replayStop=null;
 function addRouteReplay(workout,track){
   if(replayStop)replayStop();$('#route-replay')?.remove();if(track.length<2)return;
-  const section=document.createElement('section');section.id='route-replay';section.className='detail-data-section';
-  const title=document.createElement('h3');title.textContent='경로 영상';
+  const section=document.createElement('details');section.id='route-replay';section.className='detail-data-section';
+  const title=document.createElement('summary');title.textContent='경로 영상 재생·저장';
   const canvas=document.createElement('canvas');canvas.width=960;canvas.height=960;canvas.className='route-replay-canvas';canvas.setAttribute('aria-label','운동 경로 재생 영상');
   const controls=document.createElement('div');controls.className='replay-controls';
   const play=document.createElement('button'),save=document.createElement('button');play.type=save.type='button';play.className=save.className='button';play.textContent='경로 재생';save.textContent='영상 저장';
@@ -282,6 +261,15 @@ function addRouteReplay(workout,track){
     const tick=(now)=>{const progress=Math.min(1,(now-start)/12000);frame(progress);if(progress<1)animation=requestAnimationFrame(tick);else{if(recorder?.state==='recording')recorder.stop();play.disabled=save.disabled=false;if(!record)status.textContent='재생 완료';}};animation=requestAnimationFrame(tick);
   };
   play.addEventListener('click',()=>run(false));save.addEventListener('click',()=>run(true));frame(0);
+}
+function renderWorkoutZones(workout){
+ const host=$('#detail-zones');host.replaceChildren();const raw=workout.heartRateZones||[],max=Number(localStorage.getItem('wuturi-max-heart-rate')||0),load=calculateHeartRateLoad([workout],max);
+ const zones=raw.length?raw:load.zones.slice(1).map((seconds,i)=>({minimum:max*(.5+i*.1),maximum:max*(.6+i*.1),durationSeconds:seconds}));
+ const total=zones.reduce((n,z)=>n+z.durationSeconds,0);
+ if(!raw.length&&!max){host.textContent='XML에 존 기록이 없습니다. 분석 탭에서 개인 최대 심박수를 설정하면 심박 표본으로 계산합니다.';return;}
+ if(!total){host.textContent='존별 시간을 계산할 심박 기록이 없습니다.';return;}
+ zones.forEach((zone,i)=>{const row=document.createElement('div');row.className='heart-zone-row';const name=document.createElement('strong');name.textContent=`Z${i+1}`;const label=document.createElement('span');label.textContent=zone.minimum==null?`< ${zone.maximum} bpm`:zone.maximum==null?`≥ ${zone.minimum} bpm`:`${Math.round(zone.minimum)}–${Math.round(zone.maximum)} bpm`;const value=document.createElement('strong');value.textContent=`${zone.durationSeconds?displaySplitTime(zone.durationSeconds):'0:00'} · ${Math.round(zone.durationSeconds/total*100)}%`;const bar=document.createElement('progress');bar.max=total;bar.value=zone.durationSeconds;bar.setAttribute('aria-label',`Z${i+1} 체류 시간`);row.append(name,label,value,bar);host.append(row);});
+ const note=document.createElement('p');note.className='subnote';note.textContent=raw.length?'XML에 기록된 존 경계·체류 시간 기준':'개인 최대 심박수 기준 추정 · 비율은 유효 심박 관측 시간 기준';host.append(note);
 }
 function displaySplitTime(seconds){if(!Number.isFinite(seconds)||seconds<=0)return'—';const rounded=Math.round(seconds),hours=Math.floor(rounded/3600),minutes=Math.floor(rounded%3600/60),remainder=rounded%60;return hours?`${hours}:${String(minutes).padStart(2,'0')}:${String(remainder).padStart(2,'0')}`:`${minutes}:${String(remainder).padStart(2,'0')}`;}
 function renderRouteAnalysis(workout,analysis){
@@ -360,13 +348,14 @@ function renderCoachHistory(){
   reports.forEach((entry)=>{const button=document.createElement('button');button.type='button';button.className='history-row';const title=document.createElement('strong');title.textContent=`${entry.periodLabel} · ${entry.createdAt}`;const text=document.createElement('span');text.textContent=entry.report.summary;button.append(title,text);button.addEventListener('click',()=>renderCoachReport(entry.report));host.append(button);});
 }
 function generateCoach(){
-  const range=currentCoachRanges(coachPeriod),current=summarizeRange(data,range.start,range.end),previous=summarizeRange(data,range.previousStart,range.previousEnd),goal=Number($('#step-goal').value||localStorage.getItem('wuturi-step-goal')||0)||null;const report=buildLocalCoachReport(current,previous,goal);renderCoachReport(report);const labels={daily:'오늘',weekly:'이번 주',monthly:'이번 달'};let history=[];try{history=JSON.parse(localStorage.getItem('wuturi-coach-history')||'[]');}catch{}history.unshift({period:coachPeriod,periodLabel:labels[coachPeriod],createdAt:new Date().toLocaleString('ko-KR'),report});localStorage.setItem('wuturi-coach-history',JSON.stringify(history.slice(0,12)));renderCoachHistory();
+  const range=currentCoachRanges(coachPeriod),current=summarizeRange(data,range.start,range.end),previous=summarizeRange(data,range.previousStart,range.previousEnd),goal=null;const report=buildLocalCoachReport(current,previous,goal);renderCoachReport(report);const labels={daily:'오늘',weekly:'이번 주',monthly:'이번 달'};let history=[];try{history=JSON.parse(localStorage.getItem('wuturi-coach-history')||'[]');}catch{}history.unshift({period:coachPeriod,periodLabel:labels[coachPeriod],createdAt:new Date().toLocaleString('ko-KR'),report});localStorage.setItem('wuturi-coach-history',JSON.stringify(history.slice(0,12)));renderCoachHistory();
 }
 
 function renderWorkoutMonthSummary(){if(data.workouts.length){const latest=new Date(data.workouts.reduce((a,b)=>a.startDate>b.startDate?a:b).startDate);calendarMonth=new Date(latest.getFullYear(),latest.getMonth(),1);}const items=data.workouts.filter((workout)=>{const date=new Date(workout.startDate);return date.getFullYear()===calendarMonth.getFullYear()&&date.getMonth()===calendarMonth.getMonth();});$('#workout-month-label').textContent=calendarMonth.toLocaleDateString('ko-KR',{year:'numeric',month:'long'});$('#workout-month-count').textContent=`${items.length}회`;$('#workout-month-duration').textContent=`선택한 달 · 총 ${displayDuration(items.reduce((sum,workout)=>sum+workout.durationSeconds,0))}`;}
-function render() { renderWeeklySummary(); renderWorkoutMonthSummary(); renderSteps(); renderWorkouts(); renderWorkoutTypeFilter(); renderFullWorkoutList(); renderRoutes(); if(!$('#analysis-view').hidden)renderAnalysis(); }
+function render() { const imported=Boolean(data.workouts.length||data.dailyActivity.length);$('#import-section').hidden=imported;$('#add-import-button').hidden=!imported;if($('#import-status').textContent==='파일은 브라우저 안에서만 읽고 저장합니다.')$('#import-status').hidden=imported; renderWeeklySummary(); renderWorkoutMonthSummary(); renderSteps(); renderWorkouts(); renderWorkoutTypeFilter(); renderFullWorkoutList(); renderRoutes(); if(!$('#analysis-view').hidden)renderAnalysis(); }
 async function handleImport(files) {
   if (!files.length) return;
+  $('#import-status').hidden=false;$('#add-import-button').disabled=true;
   $('#import-status').textContent='파일을 읽는 중입니다…';
   let incoming = emptyData(); const parsedRoutes=[]; const problems=[]; let count=0;
   const addHealth = (health) => { incoming=mergeHealthData(incoming,health); };
@@ -489,8 +478,9 @@ stampLayouts.forEach(([id,name])=>{
   const preview=document.createElement('span');preview.className='stamp-sample';preview.dataset.layout=id;preview.innerHTML='<b>10.01</b><i>6′18″ /km</i><svg viewBox="0 0 80 30" aria-hidden="true"><path d="M8 20L20 6 40 14 60 8 73 23 47 27 24 23Z" fill="none" stroke="#62e4a0" stroke-width="3"/></svg>';
   const label=document.createElement('span');label.textContent=name;button.append(preview,label);button.addEventListener('click',()=>{stampLayout=id;$('#stamp-layout-options').querySelectorAll('button').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));drawPhoto();});$('#stamp-layout-options').append(button);
 });
+$('#add-import-button').addEventListener('click',()=>$('#health-files').click());
 $('#import-button').addEventListener('click',()=>$('#health-files').click());
-$('#health-files').addEventListener('change',async(event)=>{$('#import-button').disabled=true;try{await handleImport([...event.target.files]);}catch(error){$('#import-status').textContent=`가져오기 실패: ${error.message}`;announce('기록을 가져오지 못했습니다. 화면의 오류 내용을 확인해 주세요.',true);}finally{event.target.value='';$('#import-button').disabled=false;}});
+$('#health-files').addEventListener('change',async(event)=>{$('#import-button').disabled=true;try{await handleImport([...event.target.files]);}catch(error){$('#import-status').textContent=`가져오기 실패: ${error.message}`;announce('기록을 가져오지 못했습니다. 화면의 오류 내용을 확인해 주세요.',true);}finally{event.target.value='';$('#import-button').disabled=false;$('#add-import-button').disabled=false;}});
 document.querySelectorAll('.tab').forEach((tab)=>tab.addEventListener('click',()=>setView(tab.dataset.view)));
 $('#route-select').addEventListener('change',(event)=>{selectedWorkout=data.workouts.find((workout)=>workout.id===event.target.value)||null;renderPhotoState();});
 $('#photo-file').addEventListener('change',(event)=>setPhoto(event.target.files[0]));
@@ -505,8 +495,6 @@ $('#workout-search').addEventListener('input',renderFullWorkoutList);
 $('#workout-type-filter').addEventListener('change',renderFullWorkoutList);
 $('#analysis-period').addEventListener('click',(event)=>{const button=event.target.closest('button[data-days]');if(!button)return;analysisDays=Number(button.dataset.days);event.currentTarget.querySelectorAll('button').forEach((item)=>item.classList.toggle('selected',item===button));renderAnalysis();});
 $('#coach-period').addEventListener('click',(event)=>{const button=event.target.closest('button[data-period]');if(!button)return;coachPeriod=button.dataset.period;event.currentTarget.querySelectorAll('button').forEach((item)=>item.classList.toggle('selected',item===button));});
-$('#step-goal').value=localStorage.getItem('wuturi-step-goal')||'';
-$('#step-goal').addEventListener('input',(event)=>localStorage.setItem('wuturi-step-goal',event.target.value));
 $('#max-heart-rate').addEventListener('input',(event)=>{localStorage.setItem('wuturi-max-heart-rate',event.target.value);renderAnalysis();});
 $('#generate-coach').addEventListener('click',generateCoach);
 $('#export-button').addEventListener('click',()=>{
@@ -514,7 +502,7 @@ $('#export-button').addEventListener('click',()=>{
 });
 $('#clear-button').addEventListener('click',async()=>{
   if(!confirm('이 브라우저에 저장된 건강·운동 기록을 모두 지울까요?'))return;
-  await clearData();data=emptyData();localStorage.removeItem('wuturi-coach-history');localStorage.removeItem('wuturi-step-goal');localStorage.removeItem('wuturi-max-heart-rate');$('#step-goal').value='';$('#max-heart-rate').value='';render();renderCoachHistory();$('#import-status').textContent='기기 안의 기록을 지웠습니다.';announce('이 기기의 기록을 지웠습니다.');
+  await clearData();data=emptyData();localStorage.removeItem('wuturi-coach-history');localStorage.removeItem('wuturi-step-goal');localStorage.removeItem('wuturi-max-heart-rate');$('#max-heart-rate').value='';render();renderCoachHistory();$('#import-status').textContent='기기 안의 기록을 지웠습니다.';announce('이 기기의 기록을 지웠습니다.');
 });
 const canvas=$('#photo-canvas');
 let drag=null;
@@ -532,6 +520,4 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').cat
 $('#calendar-previous').addEventListener('click',()=>{calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1);renderWorkoutCalendar();});
 $('#calendar-next').addEventListener('click',()=>{calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1);renderWorkoutCalendar();});
 $('#calendar-mode').addEventListener('click',(event)=>{const button=event.target.closest('[data-calendar-mode]');if(!button)return;calendarMode=button.dataset.calendarMode;renderWorkoutCalendar();});
-$('#naver-map-key').value=localStorage.getItem('wuturi-naver-map-keyid')||'';
-$('#save-map-key').addEventListener('click',()=>{const key=$('#naver-map-key').value.trim();if(key)localStorage.setItem('wuturi-naver-map-keyid',key);else localStorage.removeItem('wuturi-naver-map-keyid');naverMapsPromise=undefined;$('#privacy-dialog').close();announce(key?'네이버 지도 키를 이 기기에 저장했습니다.':'네이버 지도 연결을 해제했습니다.');});
 $('#close-workout-dialog-bottom').addEventListener('click',()=>$('#workout-dialog').close());
