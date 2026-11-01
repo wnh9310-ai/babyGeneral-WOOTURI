@@ -37,8 +37,18 @@ test('reads compressed Apple Health XML and stored workout route from one ZIP',a
 });
 
 test('rejects missing Apple Health XML and corrupt archive contents',async()=>{
-  await assert.rejects(readHealthExportZip(await createZip([{name:'notes.txt',text:'no health data'}])),/export.xml을 찾지 못했습니다/);
+  await assert.rejects(readHealthExportZip(await createZip([{name:'notes.txt',text:'no health data'}])),/export.xml 또는 내보내기.xml을 찾지 못했습니다/);
   const archive=await createZip([{name:'export.xml',text:'<HealthData/>',method:8}]);
   const damaged=new Uint8Array(await archive.arrayBuffer());damaged[40]^=0xff;
   await assert.rejects(readHealthExportZip(new Blob([damaged])),/압축 해제에 실패|ZIP 내부 데이터 검증/);
+});
+
+for(const name of ['내보내기.xml','내보내기.xml'.normalize('NFD'),'apple_health_export/export.xml','건강 내보내기/내보내기.xml','EXPORT.XML']){
+  test(`recognizes localized or nested health XML: ${name}`,async()=>{
+    const archive=await createZip([{name,text:'<HealthData/>',method:8},{name:'건강 내보내기/workout-routes/route.gpx',text:'<gpx/>'}]);
+    const result=await readHealthExportZip(archive);assert.equal(result.xml,'<HealthData/>');assert.equal(result.routes[0].name,'route.gpx');
+  });
+}
+test('rejects ambiguous health XML aliases instead of choosing silently',async()=>{
+  await assert.rejects(readHealthExportZip(await createZip([{name:'export.xml',text:'<HealthData/>'},{name:'내보내기.xml',text:'<HealthData/>'}])),/두 개 이상/);
 });

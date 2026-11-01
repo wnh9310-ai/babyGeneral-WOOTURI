@@ -2,7 +2,7 @@ import { mergeHealthData, normalizeHealthExport } from './data.mjs?v=2';
 import { attachRoutesToWorkouts, parseGPX, parseHealthXML } from './parsers.mjs?v=3';
 import { buildLocalCoachReport, calculateHeartRateLoad, calculatePersonalRecords, summarizeRange } from './analytics.mjs';
 import { analyzeRoute, buildRouteMapSVG, calculateRouteDistanceMeters, projectRoute } from './route-map.mjs';
-import { readHealthExportZip } from './archive.mjs';
+import { readHealthExportZip } from './archive.mjs?v=2';
 
 const DB_NAME = 'wuturi-local-health-v1';
 const STORE_KEY = 'health-data';
