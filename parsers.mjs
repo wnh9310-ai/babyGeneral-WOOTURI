@@ -38,6 +38,10 @@ export function parseHealthXML(text) {
   const daily = new Map();
   const workouts = [];
   const heartRates = [];
+  collectHealthNodes(root,daily,workouts,heartRates);
+  return finishHealthData(daily,workouts,heartRates);
+}
+function collectHealthNodes(root,daily,workouts,heartRates,filterRates=false){
   for (const record of root.getElementsByTagName('Record')) {
     const field = metricTypes.get(record.getAttribute('type'));
     const date = parseAppleDate(record.getAttribute('startDate'));
@@ -45,7 +49,7 @@ export function parseHealthXML(text) {
     if (record.getAttribute('type') === 'HKQuantityTypeIdentifierHeartRate') {
       if (Number.isFinite(date.getTime()) && value === null) {
         const bpm = number(record.getAttribute('value'));
-        if (bpm !== null && ['count/min','bpm','beats/min'].includes((record.getAttribute('unit') || '').toLowerCase())) heartRates.push({ timestamp: date.toISOString(), beatsPerMinute: bpm, sourceName: record.getAttribute('sourceName') || '' });
+        if (bpm !== null && ['count/min','bpm','beats/min'].includes((record.getAttribute('unit') || '').toLowerCase())) {const timestamp=date.toISOString();if(!filterRates||workouts.some(w=>timestamp>=w.startDate&&timestamp<=w.endDate))heartRates.push({ timestamp, beatsPerMinute: bpm, sourceName: record.getAttribute('sourceName') || '' });}
       }
       continue;
     }
@@ -78,6 +82,8 @@ export function parseHealthXML(text) {
       heartRateSummary:heartRateStat ? { average:number(heartRateStat.getAttribute('average')), minimum:number(heartRateStat.getAttribute('minimum')), maximum:number(heartRateStat.getAttribute('maximum')) } : null,
       sourceName, heartRate:[], route:[] });
   }
+}
+function finishHealthData(daily,workouts,heartRates){
   for (const rate of heartRates) {
     const candidates = workouts.filter((workout) => rate.timestamp >= workout.startDate && rate.timestamp <= workout.endDate);
     const target=candidates.find(workout=>workout.sourceName===rate.sourceName)||candidates[0];
@@ -125,4 +131,28 @@ export function attachRoutesToWorkouts(data, routes) {
     if (target) target.route = route.points.map((point) => ({...point}));
   }
   return { ...data, workouts };
+}
+
+export async function parseHealthXMLFile(file,onProgress=()=>{}){
+  const header=await file.slice(0,65536).text(),tail=await file.slice(Math.max(0,file.size-4096)).text();
+  if(!/<HealthData(?:\s|>)/.test(header)||!tail.includes('</HealthData>'))throw new Error('완전한 Apple 건강 XML 파일을 선택해 주세요.');
+  const daily=new Map(),workouts=[],heartRates=[];
+  for(const kind of ['Workout','Record']){
+    const decoder=new TextDecoder(),opening=new RegExp(`<${kind}\\b`);let buffer='';
+    for(let offset=0;offset<file.size;offset+=1048576){
+      buffer+=decoder.decode(await file.slice(offset,offset+1048576).arrayBuffer(),{stream:offset+1048576<file.size});
+      const fragments=[];let cursor=0;
+      while(true){const match=opening.exec(buffer.slice(cursor));if(!match){buffer=buffer.slice(Math.max(cursor,buffer.length-32));break;}const start=cursor+match.index,tagEnd=buffer.indexOf('>',start);if(tagEnd<0){buffer=buffer.slice(start);break;}let end=tagEnd+1;
+        if(kind==='Workout'&&buffer[tagEnd-1]!=='/'){const close=buffer.indexOf('</Workout>',end);if(close<0){buffer=buffer.slice(start);break;}end=close+10;}
+        let fragment=buffer.slice(start,end);if(kind==='Record'){if(!/type=["']HKQuantityTypeIdentifier(?:StepCount|DistanceWalkingRunning|FlightsClimbed|ActiveEnergyBurned|HeartRate)["']/.test(fragment)){cursor=end;continue;}if(!fragment.endsWith('/>'))fragment=fragment.slice(0,-1)+'/>';}
+        fragments.push(fragment);cursor=end;
+      }
+      if(buffer.length>16*1024*1024)throw new Error('XML 항목이 너무 크거나 닫히지 않았습니다.');
+      if(fragments.length){const doc=new DOMParser().parseFromString('<HealthData>'+fragments.join('')+'</HealthData>','application/xml');if(doc.querySelector('parsererror'))throw new Error('건강 XML 항목이 손상되었습니다.');collectHealthNodes(doc.documentElement,daily,workouts,heartRates,true);}
+      onProgress({phase:kind==='Workout'?'운동 찾기':'활동·심박 읽기',percent:Math.min(100,Math.round((offset+1048576)/file.size*100))});
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    if(opening.test(buffer))throw new Error('건강 XML의 마지막 항목이 완전하지 않습니다.');
+  }
+  return finishHealthData(daily,workouts,heartRates);
 }

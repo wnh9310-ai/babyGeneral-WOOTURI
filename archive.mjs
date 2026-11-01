@@ -31,7 +31,7 @@ async function readEntry(archive, entry) {
   return new Blob([bytes], { type: 'application/octet-stream' });
 }
 
-export async function readHealthExportZip(archive) {
+export async function readHealthExportZip(archive, { xmlAsBlob = false } = {}) {
   const tailStart = Math.max(0, archive.size - 65_557);
   const tail = new DataView(await archive.slice(tailStart).arrayBuffer());
   let endOffset = -1;
@@ -61,7 +61,7 @@ export async function readHealthExportZip(archive) {
       if (isRoute) { routeBytes += uncompressedSize; if (routeBytes > maxRouteBytes) throw new Error('GPX 경로 파일의 전체 압축 해제 크기가 너무 큽니다.'); }
       const entry = { name, flags, method, crc, compressedSize, uncompressedSize, localOffset, isXML };
       const blob = await readEntry(archive, entry);
-      if (isXML) output.xml = await blob.text(); else output.routes.push({ name: routeMatch[1], blob });
+      if (isXML) output.xml = xmlAsBlob ? blob : await blob.text(); else output.routes.push({ name: routeMatch[1], blob });
     }
     offset = nameEnd + extraLength + commentLength;
   }

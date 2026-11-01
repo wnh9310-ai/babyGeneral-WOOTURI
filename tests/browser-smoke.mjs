@@ -1,10 +1,12 @@
-import { attachRoutesToWorkouts, parseGPX, parseHealthXML } from '../parsers.mjs?v=2';
+import { attachRoutesToWorkouts, parseGPX, parseHealthXML, parseHealthXMLFile } from '../parsers.mjs?v=4';
 import { analyzeRoute } from '../route-map.mjs';
 const result = document.querySelector('#result');
 const healthXML = `<?xml version="1.0"?><HealthData><Record type="HKQuantityTypeIdentifierStepCount" sourceName="Watch" unit="count" value="7000" startDate="2026-10-31 08:00:00 +0900"/><Record type="HKQuantityTypeIdentifierStepCount" sourceName="Phone" unit="count" value="6500" startDate="2026-10-31 08:00:00 +0900"/><Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="Watch" unit="km" value="5.2" startDate="2026-10-31 08:00:00 +0900"/><Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Watch" unit="count/min" value="145" startDate="2026-10-31 08:10:00 +0900"/><Workout workoutActivityType="HKWorkoutActivityTypeRunning" sourceName="Watch" startDate="2026-10-31 08:00:00 +0900" endDate="2026-10-31 08:45:00 +0900" duration="45" durationUnit="min"><WorkoutStatistics type="HKQuantityTypeIdentifierDistanceWalkingRunning" sum="6.15" unit="km"/><WorkoutStatistics type="HKQuantityTypeIdentifierActiveEnergyBurned" sum="291.7" unit="kcal"/><WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate" average="128.7" minimum="94" maximum="145" unit="count/min"/></Workout></HealthData>`;
 const gpx = `<?xml version="1.0"?><gpx xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg><trkpt lat="37.5" lon="127.0"><ele>15.5</ele><time>2026-10-30T23:00:00Z</time></trkpt><trkpt lat="37.501" lon="127.002"><ele>18</ele><time>2026-10-30T23:20:00Z</time></trkpt></trkseg></trk></gpx>`;
 try {
   const health = parseHealthXML(healthXML);
+  const streamed=await parseHealthXMLFile(new Blob([healthXML]));
+  if(JSON.stringify(streamed.workouts)!==JSON.stringify(health.workouts)||JSON.stringify(streamed.dailyActivity)!==JSON.stringify(health.dailyActivity))throw new Error('Streaming XML differs from DOM parser');
   const route = parseGPX(gpx, 'route_2026-10-31.gpx');
   const matched = attachRoutesToWorkouts(health,[route]);
   if (health.dailyActivity[0].stepCount !== 7000) throw new Error('source total selection failed');

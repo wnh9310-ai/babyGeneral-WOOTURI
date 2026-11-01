@@ -1,8 +1,8 @@
 import { mergeHealthData, normalizeHealthExport } from './data.mjs?v=2';
-import { attachRoutesToWorkouts, parseGPX, parseHealthXML } from './parsers.mjs?v=3';
+import { attachRoutesToWorkouts, parseGPX, parseHealthXML, parseHealthXMLFile } from './parsers.mjs?v=4';
 import { buildLocalCoachReport, calculateHeartRateLoad, calculatePersonalRecords, summarizeRange } from './analytics.mjs';
 import { analyzeRoute, buildRouteMapSVG, calculateRouteDistanceMeters, projectRoute } from './route-map.mjs';
-import { readHealthExportZip } from './archive.mjs?v=2';
+import { readHealthExportZip } from './archive.mjs?v=3';
 
 const DB_NAME = 'wuturi-local-health-v1';
 const STORE_KEY = 'health-data';
@@ -367,15 +367,16 @@ function renderWorkoutMonthSummary(){if(data.workouts.length){const latest=new D
 function render() { renderWeeklySummary(); renderWorkoutMonthSummary(); renderSteps(); renderWorkouts(); renderWorkoutTypeFilter(); renderFullWorkoutList(); renderRoutes(); if(!$('#analysis-view').hidden)renderAnalysis(); }
 async function handleImport(files) {
   if (!files.length) return;
+  $('#import-status').textContent='파일을 읽는 중입니다…';
   let incoming = emptyData(); const parsedRoutes=[]; const problems=[]; let count=0;
   const addHealth = (health) => { incoming=mergeHealthData(incoming,health); };
   for (const file of files) {
     try {
       const lower=file.name.toLowerCase();
       if (lower.endsWith('.gpx')) { parsedRoutes.push(parseGPX(await file.text(),file.name)); count++; }
-      else if (lower.endsWith('.xml')) { addHealth(parseHealthXML(await file.text())); count++; }
+      else if (lower.endsWith('.xml')) { addHealth(await parseHealthXMLFile(file,({phase,percent})=>{$('#import-status').textContent=`${phase} ${percent}% · ${file.name}`;})); count++; }
       else if (lower.endsWith('.zip')) {
-        const archive=await readHealthExportZip(file),health=parseHealthXML(archive.xml),routes=[];
+        const archive=await readHealthExportZip(file,{xmlAsBlob:true}),health=await parseHealthXMLFile(archive.xml,({phase,percent})=>{$('#import-status').textContent=`${phase} ${percent}% · ${file.name}`;}),routes=[];
         for(const route of archive.routes)routes.push(parseGPX(await route.blob.text(),route.name));
         addHealth(health);parsedRoutes.push(...routes);count++;
       }
@@ -383,7 +384,7 @@ async function handleImport(files) {
       else problems.push(`${file.name}: 지원하지 않는 파일`);
     } catch (error) { problems.push(`${file.name}: ${error.message || '읽을 수 없음'}`); }
   }
-  if (!count) { announce(problems[0] || '가져올 수 있는 파일이 없습니다.',true); return; }
+  if (!count) { const message=problems[0] || '가져올 수 있는 파일이 없습니다.';$('#import-status').textContent=message;announce(message,true); return; }
   const oldRoutes = data.routeFiles || [];
   const byName = new Map(oldRoutes.map((route) => [route.name,route]));
   parsedRoutes.forEach((route) => byName.set(route.name,route));
@@ -489,7 +490,7 @@ stampLayouts.forEach(([id,name])=>{
   const label=document.createElement('span');label.textContent=name;button.append(preview,label);button.addEventListener('click',()=>{stampLayout=id;$('#stamp-layout-options').querySelectorAll('button').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));drawPhoto();});$('#stamp-layout-options').append(button);
 });
 $('#import-button').addEventListener('click',()=>$('#health-files').click());
-$('#health-files').addEventListener('change',async(event)=>{await handleImport([...event.target.files]);event.target.value='';});
+$('#health-files').addEventListener('change',async(event)=>{$('#import-button').disabled=true;try{await handleImport([...event.target.files]);}catch(error){$('#import-status').textContent=`가져오기 실패: ${error.message}`;announce('기록을 가져오지 못했습니다. 화면의 오류 내용을 확인해 주세요.',true);}finally{event.target.value='';$('#import-button').disabled=false;}});
 document.querySelectorAll('.tab').forEach((tab)=>tab.addEventListener('click',()=>setView(tab.dataset.view)));
 $('#route-select').addEventListener('change',(event)=>{selectedWorkout=data.workouts.find((workout)=>workout.id===event.target.value)||null;renderPhotoState();});
 $('#photo-file').addEventListener('change',(event)=>setPhoto(event.target.files[0]));
