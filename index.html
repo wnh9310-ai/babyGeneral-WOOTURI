@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f2f2f7">
+  <meta name="description" content="건강 기록과 운동 경로를 기기 안에서 살펴보는 개인 활동 기록장">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; img-src 'self' data: blob: https://*.pstatic.net https://*.naver.com https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; script-src 'self' https://oapi.map.naver.com https://*.pstatic.net; connect-src 'self' https://*.naver.com https://*.pstatic.net; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="./styles.css?v=13">
+  <title>아기장수우투리</title>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <span class="nav-spacer" aria-hidden="true"></span>
+      <strong class="nav-title">아기장수우투리</strong>
+      <button class="icon-button" id="privacy-button" type="button" aria-label="개인정보 저장 안내">i</button>
+    </header>
+
+    <section id="activity-view" class="view" aria-labelledby="activity-title" hidden>
+      <div class="page-heading">
+        <p class="eyebrow" id="today-label">오늘</p>
+        <h1 id="activity-title">오늘의 움직임</h1>
+      </div>
+      <section class="native-card" aria-labelledby="daily-heading">
+        <div class="section-heading"><h2 id="daily-heading">일상 활동</h2><span class="section-aside">오늘</span></div>
+        <div class="daily-metrics" id="daily-metrics"></div>
+      </section>
+      <section class="native-card week-summary" aria-label="이번 주 운동 요약">
+        <span class="week-symbol" aria-hidden="true">↗</span>
+        <strong>이번 주 운동</strong>
+        <span class="week-total" id="week-summary">기록 0회 · 0분</span>
+      </section>
+      <section class="native-card" aria-labelledby="steps-heading">
+        <div class="section-heading"><h2 id="steps-heading">걸음 수 추이</h2><span class="section-aside">최근 7일</span></div>
+        <div class="steps-chart" id="steps-chart" aria-label="최근 7일 걸음 수"></div>
+        <div class="chart-legend" id="step-average">기록 대기 중</div>
+      </section>
+      <section class="native-card workouts-section" aria-labelledby="workouts-heading">
+        <div class="section-heading"><h2 id="workouts-heading">최근 운동</h2><span class="section-aside" id="workout-count">0개</span></div>
+        <div class="workout-list" id="workout-list"></div>
+      </section>
+      <section class="native-card import-section" aria-labelledby="import-heading">
+        <div class="section-heading"><h2 id="import-heading">건강 데이터 가져오기</h2></div>
+        <p class="import-description">Apple 건강 ZIP · XML · 단축어 JSON · GPX</p>
+        <button class="button button-primary" id="import-button" type="button">건강 XML·ZIP 자동 반영</button>
+        <input id="health-files" type="file" accept=".zip,.json,.xml,.gpx,application/zip,application/json,application/xml,text/xml" multiple hidden>
+        <p class="file-note" id="import-status" role="status">파일은 브라우저 안에서만 읽고 저장합니다.</p>
+        <p class="import-help">건강 앱에서 받은 XML 또는 내보내기 ZIP을 한 번 선택하면 운동·활동 값을 읽어 이 기기에 저장합니다. ZIP 안의 GPX 경로도 찾아 해당 운동에 연결합니다. 파일 내용은 서버로 보내지 않습니다.</p>
+      </section>
+      <footer class="local-tools">
+        <button class="text-button" id="export-button" type="button">내 데이터 JSON으로 내보내기</button>
+        <button class="text-button text-danger" id="clear-button" type="button">이 기기의 기록 지우기</button>
+      </footer>
+    </section>
+
+    <section id="workouts-view" class="view" aria-labelledby="workouts-page-title">
+      <div class="page-heading"><p class="eyebrow" id="workout-month-label">운동 일지</p><h1 id="workouts-page-title">운동 기록</h1></div>
+      <section class="workout-month-summary" aria-label="이번 달 운동 요약"><strong id="workout-month-count">0회</strong><span id="workout-month-duration">이번 달 운동 기록</span></section>
+      <section class="native-card workout-filters">
+        <label class="search-control"><span class="visually-hidden">운동 이름 검색</span><input id="workout-search" type="search" placeholder="운동 이름 검색"></label>
+        <label class="filter-control"><span>종목</span><select id="workout-type-filter"><option value="">모든 종목</option></select></label>
+      </section>
+      <section class="native-card"><div class="section-heading"><h2>기록</h2><span class="section-aside" id="workout-total-count">0개</span></div><div class="workout-list" id="workout-full-list"></div></section>
+    </section>
+
+    <section id="analysis-view" class="view" aria-labelledby="analysis-title" hidden>
+      <div class="page-heading"><p class="eyebrow">활동과 훈련</p><h1 id="analysis-title">활동 분석</h1></div>
+      <section class="native-card">
+        <div class="segmented" id="analysis-period" role="group" aria-label="분석 기간">
+          <button type="button" data-days="7" class="selected">7일</button><button type="button" data-days="30">30일</button><button type="button" data-days="90">90일</button>
+        </div>
+        <div class="analysis-metrics" id="analysis-metrics"></div>
+      </section>
+      <section class="native-card activity-calendar" aria-labelledby="activity-calendar-title">
+        <div class="section-heading"><h2 id="activity-calendar-title">월간 운동</h2></div>
+        <div class="calendar-month-control"><button class="icon-button" id="calendar-previous" type="button" aria-label="이전 달">‹</button><strong id="calendar-month-title"></strong><button class="icon-button" id="calendar-next" type="button" aria-label="다음 달">›</button></div>
+        <div class="calendar-month-summary"><strong id="calendar-month-count">0회</strong><span id="calendar-month-duration">운동 기록 없음</span></div>
+        <div class="segmented calendar-mode" id="calendar-mode" role="group" aria-label="운동 달력 보기"><button type="button" data-calendar-mode="month" class="selected" aria-pressed="true">월간</button><button type="button" data-calendar-mode="heatmap" aria-pressed="false">최근 16주</button></div>
+        <div id="month-calendar-panel">
+          <div class="month-weekdays" aria-hidden="true"><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span></div>
+          <div id="month-calendar" class="month-calendar" role="grid" aria-label="월간 운동 기록"></div>
+        </div>
+        <div id="heatmap-panel" hidden>
+          <div id="heatmap-months" class="heatmap-months" aria-hidden="true"></div>
+          <div class="heatmap-layout"><div class="heatmap-weekdays" aria-hidden="true"><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span></div><div id="activity-heatmap" class="activity-heatmap" role="grid" aria-label="최근 16주 운동 기록 달력"></div></div>
+          <div class="heatmap-legend"><span>적음</span><i data-level="0"></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i><span>많음</span></div>
+        </div>
+        <div id="calendar-day-records" class="calendar-day-records" aria-live="polite"></div>
+      </section>
+      <section class="native-card"><div class="section-heading"><h2>운동 종류</h2></div><div id="activity-types" class="analysis-list"></div></section>
+      <section class="native-card"><div class="section-heading"><h2>종목별 개인 기록</h2></div><div id="personal-records" class="analysis-list"></div></section>
+      <section class="native-card"><div class="section-heading"><h2>심박 구간과 훈련 부하</h2></div>
+        <label class="filter-control"><span>개인 최대 심박수</span><span class="number-entry"><input id="max-heart-rate" type="number" min="80" max="240" placeholder="선택"> bpm</span></label>
+        <div id="heart-rate-load" class="analysis-list"></div>
+        <p class="subnote">심박 표본이 없는 운동은 부하 계산에서 제외합니다. 최대 심박수를 직접 입력해야 구간을 계산합니다.</p>
+      </section>
+    </section>
+
+    <section id="coach-view" class="view" aria-labelledby="coach-title" hidden>
+      <div class="page-heading"><p class="eyebrow">개인 활동 코칭</p><h1 id="coach-title">활동 코칭</h1></div>
+      <section class="native-card">
+        <div class="segmented" id="coach-period" role="group" aria-label="코칭 기간">
+          <button type="button" data-period="daily" class="selected">오늘</button><button type="button" data-period="weekly">이번 주</button><button type="button" data-period="monthly">이번 달</button>
+        </div>
+        <label class="filter-control"><span>하루 걸음 목표 <small>(선택)</small></span><span class="number-entry"><input id="step-goal" type="number" min="1" placeholder="설정 안 함"> 보</span></label>
+        <p class="subnote">이 웹앱은 Apple Intelligence 모델을 실행하지 않습니다. 기록을 서버로 보내지 않고, 기기 안의 규칙으로 비교해 코칭합니다.</p>
+        <button class="button button-primary full-button" id="generate-coach" type="button">내 기록 분석하기</button>
+      </section>
+      <section class="native-card coach-report" id="coach-report"><div class="section-heading"><h2>기간 요약</h2><span class="section-aside">기기 내 규칙 분석</span></div><p class="coach-summary" id="coach-summary">건강 기록을 가져온 뒤 분석할 수 있습니다.</p><div id="coach-findings"></div><div class="coach-next" id="coach-next"></div><div id="coach-evidence" class="evidence-list"></div></section>
+      <section class="native-card"><div class="section-heading"><h2>저장된 코칭</h2><span class="section-aside">이 기기</span></div><div id="coach-history" class="analysis-list"></div></section>
+    </section>
+
+    <section id="photo-view" class="view" aria-labelledby="photo-title" hidden>
+      <div class="page-heading photo-heading">
+        <p class="eyebrow">운동 기록</p>
+        <h1 id="photo-title">사진 경로</h1>
+        <p class="intro">사진 위에 운동 경로와 거리·페이스·시간을 표시합니다.</p>
+      </div>
+      <section class="native-card photo-controls">
+        <label class="file-control"><span>사진 선택</span><input id="photo-file" type="file" accept="image/*"></label>
+        <label class="file-control"><span>경로가 있는 운동</span><select id="route-select"><option value="">운동 기록 가져오기</option></select></label>
+        <div class="editor-options" id="editor-options" hidden>
+          <fieldset class="stamp-layouts"><legend>스탬프 배치</legend><div id="stamp-layout-options" class="stamp-layout-options" role="group" aria-label="스탬프 배치 선택"></div></fieldset>
+          <label class="stamp-size-control">크기 <input id="stamp-size" type="range" min="50" max="180" value="100"><output id="stamp-size-value" for="stamp-size">100%</output></label>
+          <label class="stamp-transparent"><input id="stamp-transparent" type="checkbox"> 배경 없이</label>
+          <label>경로 색 <input id="route-color" type="color" value="#42d486" aria-label="경로 선 색상"></label>
+          <button class="button button-primary" id="save-image" type="button">사진으로 저장</button>
+        </div>
+      </section>
+      <div class="photo-stage" id="photo-stage" hidden><canvas id="photo-canvas" aria-label="경로 스탬프 미리보기"></canvas><p class="drag-hint">스탬프를 누른 채 원하는 곳으로 옮기세요</p></div>
+      <div class="photo-empty" id="photo-empty"><strong>사진과 운동 경로를 선택하면<br>합성 결과를 미리 볼 수 있어요.</strong><p>원본은 그대로 두고, 저장 이미지에만 경로를 합성합니다.</p></div>
+      <section class="native-card gpx-help"><strong>운동 경로가 보이지 않나요?</strong><p>Apple 건강 내보내기 ZIP을 Files 앱에서 풀고 `workout-routes` 폴더의 GPX 파일과 `export.xml`을 함께 가져오세요. XML에는 운동 기록이, GPX에는 경로 좌표가 들어 있습니다.</p></section>
+    </section>
+
+    <nav class="tabs" aria-label="주요 화면">
+      <button class="tab is-active" data-view="workouts" type="button"><span aria-hidden="true">↗</span>운동</button>
+      <button class="tab" data-view="activity" type="button"><span aria-hidden="true">⌂</span>활동</button>
+      <button class="tab" data-view="analysis" type="button"><span aria-hidden="true">▥</span>분석</button>
+      <button class="tab" data-view="coach" type="button"><span aria-hidden="true">✳</span>코칭</button>
+      <button class="tab" data-view="photo" type="button"><span aria-hidden="true">▧</span>사진</button>
+    </nav>
+    <dialog id="workout-dialog"><div class="dialog-inner workout-detail-inner"><button class="detail-close" id="close-workout-dialog" type="button" aria-label="운동 상세 닫기">닫기</button><p class="eyebrow" id="detail-date"></p><h2 id="detail-title">운동 상세</h2><div id="detail-highlights" class="detail-highlights"></div><section id="detail-route-section" class="detail-route-section" hidden aria-labelledby="detail-route-title"><div class="detail-route-heading"><strong id="detail-route-title">경로</strong><span>지도와 거리 그래프 연결</span></div><div id="detail-route-map" class="detail-route-map"></div><div id="detail-combined-chart" class="detail-combined-chart"></div><p class="detail-route-note" id="detail-route-note"></p></section><p id="detail-metric-note" class="detail-route-note" hidden></p><section class="detail-data-section"><h3>심박</h3><div id="detail-heart-rate" class="analysis-list"></div></section><section class="detail-data-section" id="detail-route-analysis" hidden><h3>GPS 구간 분석</h3><div id="detail-route-analysis-metrics" class="analysis-list"></div><div id="detail-route-quality" class="subnote"></div><div id="detail-splits" class="split-table" role="table" aria-label="1km 운동 구간"></div></section><div id="detail-metrics" class="detail-metrics"></div><button class="button button-primary" id="close-workout-dialog-bottom" type="button">닫기</button></div></dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </main>
+  <dialog id="privacy-dialog"><div class="dialog-inner"><p class="eyebrow">기기 내 저장</p><h2>내 기록은 이 브라우저 안에</h2><p>건강 XML, GPX, 단축어 JSON과 사진은 브라우저 안에서 읽고 저장합니다. 기본 OpenStreetMap 지도는 표시 지역과 IP를 지도 서버에 전달합니다. 건강 데이터와 GPX 원본은 업로드하지 않습니다.</p><label class="map-key-label" for="naver-map-key">네이버 지도 클라이언트 ID</label><input id="naver-map-key" class="map-key-input" type="text" autocomplete="off" placeholder="ncpKeyId"><p class="map-key-help">키는 이 기기의 브라우저에만 저장합니다. <a href="https://navermaps.github.io/maps.js.ncp/docs/tutorial-2-Getting-Started.html" target="_blank" rel="noreferrer">클라이언트 ID 발급 안내</a>에서 웹 서비스 URL을 등록해야 합니다.</p><button class="button button-primary" id="save-map-key" type="button">지도 설정 저장</button><button class="button" id="close-dialog" type="button">닫기</button></div></dialog>
+  <script type="module" src="./app.mjs?v=20"></script>
+</body>
+</html>

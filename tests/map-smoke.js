@@ -1,0 +1,1 @@
+const map=L.map('map').setView([36.3,127.8],7);let loaded=0;L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors'}).on('tileload',()=>document.querySelector('#status').textContent=`지도 타일 ${++loaded}개 표시 완료`).on('tileerror',()=>document.querySelector('#status').textContent='지도 타일 오류').addTo(map);

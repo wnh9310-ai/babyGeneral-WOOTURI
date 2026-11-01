@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "source": "synthetic-browser-test",
+  "generatedAt": "2026-11-01T09:00:00+09:00",
+  "dailyActivity": [
+    {"date":"2026-11-01","stepCount":7550,"walkingRunningDistanceMeters":5100,"flightsClimbed":4,"activeEnergyKilocalories":330},
+    {"date":"2026-10-31","stepCount":8320,"walkingRunningDistanceMeters":6200,"flightsClimbed":3,"activeEnergyKilocalories":355}
+  ],
+  "workouts": [
+    {
+      "activityTypeIdentifier":"HKWorkoutActivityTypeRunning",
+      "activityTypeName":"달리기",
+      "startDate":"2026-11-01T07:30:00+09:00",
+      "endDate":"2026-11-01T08:10:00+09:00",
+      "durationSeconds":2400,
+      "distanceMeters":7200,
+      "activeEnergyKilocalories":390,
+      "sourceName":"Synthetic Watch Fixture",
+      "heartRate":[
+        {"timestamp":"2026-11-01T07:35:00+09:00","beatsPerMinute":135},
+        {"timestamp":"2026-11-01T07:35:30+09:00","beatsPerMinute":142},
+        {"timestamp":"2026-11-01T07:36:00+09:00","beatsPerMinute":148}
+      ],
+      "route":[
+        {"latitude":37.5000,"longitude":127.0000},
+        {"latitude":37.5010,"longitude":127.0020},
+        {"latitude":37.5030,"longitude":127.0030},
+        {"latitude":37.5040,"longitude":127.0010}
+      ]
+    }
+  ]
+}
