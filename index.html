@@ -38,14 +38,6 @@
         <div class="section-heading"><h2 id="workouts-heading">최근 운동</h2><span class="section-aside" id="workout-count">0개</span></div>
         <div class="workout-list" id="workout-list"></div>
       </section>
-      <section class="native-card import-section" aria-labelledby="import-heading">
-        <div class="section-heading"><h2 id="import-heading">건강 데이터 가져오기</h2></div>
-        <p class="import-description">Apple 건강 ZIP · XML · 단축어 JSON · GPX</p>
-        <button class="button button-primary" id="import-button" type="button">건강 XML·ZIP 자동 반영</button>
-        <input id="health-files" type="file" accept=".zip,.json,.xml,.gpx,application/zip,application/json,application/xml,text/xml" multiple hidden>
-        <p class="file-note" id="import-status" role="status">파일은 브라우저 안에서만 읽고 저장합니다.</p>
-        <p class="import-help">건강 앱에서 받은 XML 또는 내보내기 ZIP을 한 번 선택하면 운동·활동 값을 읽어 이 기기에 저장합니다. ZIP 안의 GPX 경로도 찾아 해당 운동에 연결합니다. 파일 내용은 서버로 보내지 않습니다.</p>
-      </section>
       <footer class="local-tools">
         <button class="text-button" id="export-button" type="button">내 데이터 JSON으로 내보내기</button>
         <button class="text-button text-danger" id="clear-button" type="button">이 기기의 기록 지우기</button>
@@ -54,6 +46,14 @@
 
     <section id="workouts-view" class="view" aria-labelledby="workouts-page-title">
       <div class="page-heading"><p class="eyebrow" id="workout-month-label">운동 일지</p><h1 id="workouts-page-title">운동 기록</h1></div>
+      <section class="native-card import-section" aria-labelledby="import-heading">
+        <div class="section-heading"><h2 id="import-heading">운동 기록 가져오기</h2></div>
+        <p class="import-description">아이폰 건강 앱 → 오른쪽 위 프로필 → 모든 건강 데이터 내보내기</p><p class="import-help">내보낸 ZIP을 파일 앱에 저장하고, 아래 버튼에서 선택하세요. ZIP에 담긴 운동·심박·GPX 경로를 함께 읽습니다. 개별 XML·GPX와 단축어 JSON도 선택할 수 있어요.</p>
+        <button class="button button-primary" id="import-button" type="button">기록 파일 선택해서 가져오기</button>
+        <input id="health-files" type="file" accept=".zip,.json,.xml,.gpx,application/zip,application/json,application/xml,text/xml" multiple hidden>
+        <p class="file-note" id="import-status" role="status">파일은 브라우저 안에서만 읽고 저장합니다.</p>
+        <p class="import-help">건강 앱에서 받은 XML 또는 내보내기 ZIP을 한 번 선택하면 운동·활동 값을 읽어 이 기기에 저장합니다. ZIP 안의 GPX 경로도 찾아 해당 운동에 연결합니다. 파일 내용은 서버로 보내지 않습니다.</p>
+      </section>
       <section class="workout-month-summary" aria-label="이번 달 운동 요약"><strong id="workout-month-count">0회</strong><span id="workout-month-duration">이번 달 운동 기록</span></section>
       <section class="native-card workout-filters">
         <label class="search-control"><span class="visually-hidden">운동 이름 검색</span><input id="workout-search" type="search" placeholder="운동 이름 검색"></label>
@@ -142,6 +142,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </main>
   <dialog id="privacy-dialog"><div class="dialog-inner"><p class="eyebrow">기기 내 저장</p><h2>내 기록은 이 브라우저 안에</h2><p>건강 XML, GPX, 단축어 JSON과 사진은 브라우저 안에서 읽고 저장합니다. 기본 OpenStreetMap 지도는 표시 지역과 IP를 지도 서버에 전달합니다. 건강 데이터와 GPX 원본은 업로드하지 않습니다.</p><label class="map-key-label" for="naver-map-key">네이버 지도 클라이언트 ID</label><input id="naver-map-key" class="map-key-input" type="text" autocomplete="off" placeholder="ncpKeyId"><p class="map-key-help">키는 이 기기의 브라우저에만 저장합니다. <a href="https://navermaps.github.io/maps.js.ncp/docs/tutorial-2-Getting-Started.html" target="_blank" rel="noreferrer">클라이언트 ID 발급 안내</a>에서 웹 서비스 URL을 등록해야 합니다.</p><button class="button button-primary" id="save-map-key" type="button">지도 설정 저장</button><button class="button" id="close-dialog" type="button">닫기</button></div></dialog>
-  <script type="module" src="./app.mjs?v=21"></script>
+  <script type="module" src="./app.mjs?v=22"></script>
 </body>
 </html>
