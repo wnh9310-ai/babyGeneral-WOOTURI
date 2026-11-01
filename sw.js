@@ -1,5 +1,5 @@
-const CACHE = 'wuturi-shell-v22';
-const SHELL = ['./','./index.html','./styles.css?v=13','./app.mjs?v=20','./archive.mjs','./route-map.mjs','./data.mjs?v=2','./parsers.mjs?v=3','./analytics.mjs','./manifest.webmanifest','./vendor/leaflet/leaflet.js','./vendor/leaflet/leaflet.css'];
+const CACHE = 'wuturi-shell-v23';
+const SHELL = ['./','./index.html','./styles.css?v=13','./app.mjs?v=21','./archive.mjs','./route-map.mjs','./data.mjs?v=2','./parsers.mjs?v=3','./analytics.mjs','./manifest.webmanifest','./vendor/leaflet/leaflet.js','./vendor/leaflet/leaflet.css'];
 self.addEventListener('install',(event)=>event.waitUntil(caches.open(CACHE).then((cache)=>cache.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',(event)=>event.waitUntil(caches.keys().then((keys)=>Promise.all(keys.filter((key)=>key!==CACHE).map((key)=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',(event)=>{

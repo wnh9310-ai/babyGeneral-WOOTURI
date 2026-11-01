@@ -95,24 +95,6 @@ function displayPace(workout,routeDistanceMeters=null) {
 }
 function localDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
 
-function renderDailyMetrics() {
-  const today = data.dailyActivity.find((row) => row.date === localDateKey(new Date())) || {};
-  const metrics = [
-    ['걸음', today.stepCount, '걸음'],
-    ['이동 거리', today.walkingRunningDistanceMeters == null ? null : today.walkingRunningDistanceMeters / 1000, 'km'],
-    ['오른 층', today.flightsClimbed, '층'],
-    ['활동 에너지', today.activeEnergyKilocalories, 'kcal']
-  ];
-  const host = $('#daily-metrics'); host.replaceChildren();
-  metrics.forEach(([title,value,unit]) => {
-    const item = document.createElement('div'); item.className='metric-value';
-    const label=document.createElement('span');label.className='metric-label';label.textContent=title;
-    const number=document.createElement('span');number.className='metric-number';
-    const figure=document.createElement('span');figure.textContent=value == null ? '—' : new Intl.NumberFormat('ko-KR',{maximumFractionDigits:1}).format(value);
-    const suffix=document.createElement('small');suffix.textContent=unit;
-    number.append(figure,suffix);item.append(label,number);host.append(item);
-  });
-}
 function renderWeeklySummary() {
   const now=new Date();
   const weekday=(now.getDay()+6)%7;
@@ -382,7 +364,7 @@ function generateCoach(){
 }
 
 function renderWorkoutMonthSummary(){if(data.workouts.length){const latest=new Date(data.workouts.reduce((a,b)=>a.startDate>b.startDate?a:b).startDate);calendarMonth=new Date(latest.getFullYear(),latest.getMonth(),1);}const items=data.workouts.filter((workout)=>{const date=new Date(workout.startDate);return date.getFullYear()===calendarMonth.getFullYear()&&date.getMonth()===calendarMonth.getMonth();});$('#workout-month-label').textContent=calendarMonth.toLocaleDateString('ko-KR',{year:'numeric',month:'long'});$('#workout-month-count').textContent=`${items.length}회`;$('#workout-month-duration').textContent=`선택한 달 · 총 ${displayDuration(items.reduce((sum,workout)=>sum+workout.durationSeconds,0))}`;}
-function render() { renderDailyMetrics(); renderWeeklySummary(); renderWorkoutMonthSummary(); renderSteps(); renderWorkouts(); renderWorkoutTypeFilter(); renderFullWorkoutList(); renderRoutes(); if(!$('#analysis-view').hidden)renderAnalysis(); }
+function render() { renderWeeklySummary(); renderWorkoutMonthSummary(); renderSteps(); renderWorkouts(); renderWorkoutTypeFilter(); renderFullWorkoutList(); renderRoutes(); if(!$('#analysis-view').hidden)renderAnalysis(); }
 async function handleImport(files) {
   if (!files.length) return;
   let incoming = emptyData(); const parsedRoutes=[]; const problems=[]; let count=0;
@@ -543,7 +525,6 @@ canvas.addEventListener('pointerdown',(event)=>{
 canvas.addEventListener('pointermove',(event)=>{if(!drag)return;const rect=canvas.getBoundingClientRect();stamp.x=drag.stampX+(event.clientX-rect.left)*canvas.width/rect.width-drag.x;stamp.y=drag.stampY+(event.clientY-rect.top)*canvas.height/rect.height-drag.y;drawPhoto();});
 canvas.addEventListener('pointerup',()=>{drag=null;});canvas.addEventListener('pointercancel',()=>{drag=null;});
 setView('workouts');
-$('#today-label').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
 try { data=await readData(); if(!Array.isArray(data.routeFiles))data.routeFiles=[]; data=attachRoutesToWorkouts(data,data.routeFiles);render(); }
 catch(error){$('#import-status').textContent=`기기 저장소를 사용할 수 없습니다. ${error.message}`;render();}
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
